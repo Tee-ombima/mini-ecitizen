@@ -2,15 +2,69 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     public function showRegister() { return view('auth.register'); }
     public function showLogin() { return view('auth.login'); }
+    public function showForgotPassword() { return view('auth.forgot-password'); }
+
+    public function sendPasswordResetLink(Request $r)
+    {
+        $r->validate(['email' => ['required', 'email']]);
+
+        $status = Password::sendResetLink($r->only('email'));
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return back()->with('status', __($status));
+        }
+
+        return back()->withErrors(['email' => __($status)])->onlyInput('email');
+    }
+
+    public function showResetPassword(Request $r, string $token)
+    {
+        return view('auth.reset-password', [
+            'token' => $token,
+            'email' => $r->email,
+        ]);
+    }
+
+    public function resetPassword(Request $r)
+{
+    $r->validate([
+        'token' => ['required', 'string'],
+        'email' => ['required', 'email'],
+        'password' => ['required', 'confirmed', 'min:8'],
+    ]);
+
+    $status = Password::reset(
+        $r->only('email', 'password', 'password_confirmation', 'token'),
+        function (User $user, string $password) {
+            $user->password = Hash::make($password);
+            $user->setRememberToken(Str::random(60));
+            $user->save();
+
+            event(new PasswordReset($user));
+        }
+    );
+
+    if ($status === Password::PASSWORD_RESET) {
+        return redirect()->route('login')
+            ->with('status', __($status));
+    }
+
+    return back()
+        ->withErrors(['email' => __($status)])
+        ->onlyInput('email');
+}
 
     public function register(Request $r)
     {

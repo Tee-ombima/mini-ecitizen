@@ -9,6 +9,7 @@
     <label class="inline"><input type="checkbox" name="remember" value="1"> Remember me</label>
     <p><button class="btn">Log in</button></p>
   </form>
+  <p class="muted"><a href="{{ route('password.request') }}">Forgot password?</a></p>
   <p class="muted">New here? <a href="{{ route('register') }}">Create a citizen account</a></p>
 </div>
 @endsection
